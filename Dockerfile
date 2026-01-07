@@ -1,31 +1,39 @@
-# Use official Node.js LTS image
+# Use Node base
 FROM node:20-bullseye
 
-# Install Java (required for keytool)
+# Install Java + wget, unzip
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk unzip wget && \
+    apt-get install -y openjdk-17-jdk wget unzip && \
     apt-get clean
 
-# Install Android build-tools for apksigner
+# Set Android SDK root
+ENV ANDROID_SDK_ROOT=/android-sdk
+RUN mkdir -p /android-sdk
+
+# Download and install Android command-line tools
+RUN mkdir -p /android-sdk/cmdline-tools
 RUN wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline-tools.zip && \
-    mkdir -p /usr/local/android/cmdline-tools && \
-    unzip /tmp/cmdline-tools.zip -d /usr/local/android/cmdline-tools && \
+    unzip /tmp/cmdline-tools.zip -d /android-sdk/cmdline-tools && \
     rm /tmp/cmdline-tools.zip
 
-ENV ANDROID_HOME=/usr/local/android
-ENV PATH=$PATH:/usr/local/android/cmdline-tools/tools/bin:/usr/local/android/cmdline-tools/latest/bin
+# Reorganize so sdkmanager lives in /android-sdk/cmdline-tools/latest/bin
+RUN mkdir -p /android-sdk/cmdline-tools/latest && \
+    mv /android-sdk/cmdline-tools/cmdline-tools/* /android-sdk/cmdline-tools/latest/
 
-# Install SDK build-tools
-RUN yes | sdkmanager "build-tools;34.0.0"
+# Add tools to PATH
+ENV PATH=$PATH:/android-sdk/cmdline-tools/latest/bin:/android-sdk/platform-tools
 
-# Copy project
+# Install build-tools + platform tools
+RUN yes | sdkmanager --sdk_root=/android-sdk "platform-tools" "build-tools;33.0.3"
+
+# Copy app
 WORKDIR /app
-COPY package.json package.json
+COPY package.json .
 RUN npm install
 COPY . .
 
-# Create tmp folder for APKs
-RUN mkdir tmp
+RUN mkdir -p tmp
 
 EXPOSE 3000
+
 CMD ["npm", "start"]
