@@ -1,39 +1,50 @@
-# Use Node base
+# ————————————————————
+# Use Node base image
 FROM node:20-bullseye
 
-# Install Java + wget, unzip
+# ————————————————————
+# Install Java + wget + unzip
 RUN apt-get update && \
     apt-get install -y openjdk-17-jdk wget unzip && \
     apt-get clean
 
-# Set Android SDK root
+# ————————————————————
+# Setup Android SDK root
 ENV ANDROID_SDK_ROOT=/android-sdk
 RUN mkdir -p /android-sdk
 
-# Download and install Android command-line tools
-RUN mkdir -p /android-sdk/cmdline-tools
-RUN wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmdline-tools.zip && \
-    unzip /tmp/cmdline-tools.zip -d /android-sdk/cmdline-tools && \
-    rm /tmp/cmdline-tools.zip
+# ————————————————————
+# Download & unpack Android command-line tools
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+RUN wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O /tmp/cmd.zip && \
+    unzip /tmp/cmd.zip -d $ANDROID_SDK_ROOT/cmdline-tools && \
+    rm /tmp/cmd.zip
 
-# Reorganize so sdkmanager lives in /android-sdk/cmdline-tools/latest/bin
-RUN mkdir -p /android-sdk/cmdline-tools/latest && \
-    mv /android-sdk/cmdline-tools/cmdline-tools/* /android-sdk/cmdline-tools/latest/
+# Move tools into "latest" subfolder (required layout)
+RUN mkdir -p $ANDROID_SDK_ROOT/cmdline-tools/latest && \
+    mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools/* $ANDROID_SDK_ROOT/cmdline-tools/latest/
 
-# Add tools to PATH
-ENV PATH=$PATH:/android-sdk/cmdline-tools/latest/bin:/android-sdk/platform-tools
+# Add Android tools to PATH
+ENV PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
 
-# Install build-tools + platform tools
-RUN yes | sdkmanager --sdk_root=/android-sdk "platform-tools" "build-tools;33.0.3"
+# ————————————————————
+# Accept licenses + install platform‑tools and stable build‑tools with apksigner
+RUN mkdir -p $ANDROID_SDK_ROOT/licenses && \
+    yes | sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses && \
+    sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "build-tools;33.0.3"
 
-# Copy app
+# ————————————————————
+# Copy application
 WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
 
+# Ensure tmp directory exists for upload sign work
 RUN mkdir -p tmp
 
+# Expose port
 EXPOSE 3000
 
+# Run server
 CMD ["npm", "start"]
