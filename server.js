@@ -42,7 +42,6 @@ app.post("/upload", upload.single("apk"), (req, res) => {
       return res.send("Signing failed (internal error).");
     }
 
-    // Send signed APK back to user
     res.download(signedApk, `${req.file.originalname.replace(".apk", "")}_signed.apk`, () => {
       try { fs.unlinkSync(req.file.path); } catch {}
       try { fs.unlinkSync(keystore); } catch {}
@@ -51,6 +50,5 @@ app.post("/upload", upload.single("apk"), (req, res) => {
   });
 });
 
-// Start server
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`APK Random Sign Tool running on port ${port}`));
