@@ -7,19 +7,19 @@ const path = require("path");
 const app = express();
 app.use(express.static("public"));
 
-const tmpDir = path.join(__dirname, "tmp");
-if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
+const tempDir = path.join(__dirname, "tmp");
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir);
 
-const upload = multer({ dest: tmpDir, limits: { fileSize: 200 * 1024 * 1024 } });
+const upload = multer({ dest: tempDir, limits: { fileSize: 200 * 1024 * 1024 } });
 
 app.post("/upload", upload.single("apk"), (req, res) => {
   if (!req.file || !req.file.originalname.endsWith(".apk")) {
-    return res.send("Invalid file.");
+    return res.send("Invalid APK file");
   }
 
   const id = Date.now();
-  const keystore = path.join(tmpDir, `ks_${id}.jks`);
-  const signedApk = path.join(tmpDir, `signed_${id}.apk`);
+  const keystore = path.join(tempDir, `ks_${id}.jks`);
+  const signedApk = path.join(tempDir, `signed_${id}.apk`);
   const pass = "123456";
 
   const cmd = `
@@ -34,9 +34,10 @@ app.post("/upload", upload.single("apk"), (req, res) => {
 
   exec(cmd, { shell: "/bin/bash" }, (err) => {
     if (err) {
-      console.error("Signing failed:", err);
-      return res.send("Signing failed.");
+      console.error("Signing failed ⚠️", err);
+      return res.send("Signing failed, internal error.");
     }
+
     res.download(signedApk, `${req.file.originalname.replace(".apk", "")}_signed.apk`, () => {
       fs.unlinkSync(req.file.path);
       fs.unlinkSync(keystore);
@@ -46,4 +47,4 @@ app.post("/upload", upload.single("apk"), (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Running on port ${port}`));
+app.listen(port, () => console.log(`APK Random Sign Tool running on port ${port}`));
